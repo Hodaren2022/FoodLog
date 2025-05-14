@@ -469,7 +469,7 @@ function cancelRecord() {
     
     // 停止語音錄製
     if (isRecording) {
-        stopVoiceRecording();
+        stopAudioRecording(); // 更正函數名稱
     }
     
     // 返回主頁
@@ -576,6 +576,21 @@ function updateRecordsList() {
             </div>
         `;
         
+        // 刪除按鈕
+        const deleteBtn = document.createElement('button');
+        deleteBtn.classList.add('delete-btn');
+        deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+        deleteBtn.addEventListener('click', (event) => {
+            event.stopPropagation(); // 防止觸發 recordCard 的點擊事件
+            deleteRecord(record.id);
+        });
+
+        const recordActions = document.createElement('div');
+        recordActions.classList.add('record-actions');
+        recordActions.appendChild(deleteBtn);
+
+        recordCard.appendChild(recordActions); // 將操作按鈕添加到卡片
+
         // 點擊查看詳情
         recordCard.addEventListener('click', () => {
             showRecordDetail(record);
@@ -780,6 +795,24 @@ function showRecordDetail(record) {
     document.getElementById('editRecordBtn').addEventListener('click', () => {
         editRecord(record);
     });
+
+    // 新增刪除按鈕到詳情頁
+    const deleteDetailBtn = document.createElement('button');
+    deleteDetailBtn.id = 'deleteRecordDetailBtn';
+    deleteDetailBtn.classList.add('text-btn', 'danger-btn');
+    deleteDetailBtn.innerHTML = '<i class="fas fa-trash"></i> 刪除';
+    deleteDetailBtn.addEventListener('click', () => {
+        if (confirm('確定要刪除這條記錄嗎？')) {
+            deleteRecord(record.id);
+            detailScreen.classList.add('hidden');
+            homeScreen.classList.remove('hidden');
+        }
+    });
+    // 將刪除按鈕添加到詳情頁的頭部或底部，這裡添加到頭部旁邊
+    const detailHeader = detailScreen.querySelector('.detail-header');
+    if (detailHeader) {
+        detailHeader.appendChild(deleteDetailBtn);
+    }
 }
 
 // 保存記錄到本地存儲
@@ -793,6 +826,18 @@ function saveRecords() {
         if (error instanceof DOMException && error.name === 'QuotaExceededError') {
             alert('存儲空間不足，請刪除一些舊記錄。');
         }
+    }
+}
+
+// 刪除記錄
+function deleteRecord(recordId) {
+    records = records.filter(record => record.id !== recordId);
+    saveRecords();
+    updateRecordsList();
+    // 如果當前在詳情頁面，則返回主頁
+    if (!detailScreen.classList.contains('hidden')) {
+        detailScreen.classList.add('hidden');
+        homeScreen.classList.remove('hidden');
     }
 }
 
