@@ -9,7 +9,8 @@ let currentRecord = {
     tags: [],
     dishName: '',
     price: '',
-    date: null
+    date: null,
+    audioNote: null // 新增錄音筆記
 };
 
 let records = [];
@@ -17,6 +18,7 @@ let selectedRestaurant = null;
 let isRecording = false;
 let mediaRecorder = null;
 let audioChunks = [];
+let isEditing = false; // 標記是否處於編輯模式
 
 // DOM 元素
 const homeScreen = document.getElementById('homeScreen');
@@ -209,6 +211,7 @@ function stopCameraStream() {
 // 獲取位置
 function getLocation() {
     if (navigator.geolocation) {
+        locationStatus.textContent = '正在獲取GPS位置...';
         navigator.geolocation.getCurrentPosition(
             position => {
                 const latitude = position.coords.latitude;
@@ -217,40 +220,32 @@ function getLocation() {
                 // 保存位置到當前記錄
                 currentRecord.location = { latitude, longitude };
                 
-                // 獲取附近餐廳
-                getNearbyRestaurants(latitude, longitude);
+                // 顯示位置信息
+                locationStatus.innerHTML = `<strong>已獲取GPS位置</strong><br>緯度: ${latitude.toFixed(6)}<br>經度: ${longitude.toFixed(6)}`;
+                
+                // 顯示手動輸入餐廳選項
+                manualLocationInput.classList.remove('hidden');
+                customRestaurantName.placeholder = '輸入餐廳名稱（選填）';
             },
             error => {
                 console.error('無法獲取位置:', error);
-                locationStatus.textContent = '無法獲取位置，請手動輸入餐廳。';
+                locationStatus.textContent = '無法獲取位置，請手動輸入餐廳（選填）。';
                 manualLocationInput.classList.remove('hidden');
             }
         );
     } else {
-        locationStatus.textContent = '您的瀏覽器不支持地理位置功能，請手動輸入餐廳。';
+        locationStatus.textContent = '您的瀏覽器不支持地理位置功能，請手動輸入餐廳（選填）。';
         manualLocationInput.classList.remove('hidden');
     }
 }
 
-// 獲取附近餐廳
+// 獲取附近餐廳 - 此功能已不再使用，但保留函數以避免錯誤
 function getNearbyRestaurants(latitude, longitude) {
-    // 這裡應該使用 Google Places API 或其他地圖服務
-    // 由於這是一個示範，我們使用模擬數據
-    
-    // 模擬 API 請求延遲
-    locationStatus.textContent = '正在搜尋附近餐廳...';
-    
-    setTimeout(() => {
-        const mockRestaurants = [
-            { id: 1, name: '好味餐廳', distance: '50公尺' },
-            { id: 2, name: '美食天地', distance: '120公尺' },
-            { id: 3, name: '家鄉小館', distance: '200公尺' },
-            { id: 4, name: '星級牛排館', distance: '350公尺' },
-            { id: 5, name: '海鮮樓', distance: '400公尺' }
-        ];
-        
-        displayRestaurants(mockRestaurants);
-    }, 1000);
+    // 不再使用模擬餐廳數據
+    // 直接顯示手動輸入選項
+    locationStatus.innerHTML = `<strong>已獲取GPS位置</strong><br>緯度: ${latitude.toFixed(6)}<br>經度: ${longitude.toFixed(6)}`;
+    manualLocationInput.classList.remove('hidden');
+    customRestaurantName.placeholder = '輸入餐廳名稱（選填）';
 }
 
 // 顯示餐廳列表
@@ -304,19 +299,25 @@ function toggleManualLocationInput() {
 // 確認手動輸入的餐廳
 function confirmManualLocation() {
     const name = customRestaurantName.value.trim();
+    // 餐廳名稱現在是選填的
+    currentRecord.restaurant = name; // 如果為空，則保存為空值
+    
     if (name) {
-        currentRecord.restaurant = name;
-        locationStatus.textContent = `已選擇餐廳: ${name}`;
-        manualLocationInput.classList.add('hidden');
-        
-        // 清除之前的選擇
-        const selectedItems = document.querySelectorAll('#restaurantList li.selected');
-        selectedItems.forEach(item => {
-            item.classList.remove('selected');
-        });
+        locationStatus.innerHTML = locationStatus.innerHTML + `<br>餐廳: ${name}`;
     } else {
-        alert('請輸入餐廳名稱');
+        // 如果沒有輸入餐廳名稱，只顯示位置信息
+        if (!locationStatus.innerHTML.includes('已獲取GPS位置')) {
+            locationStatus.textContent = '已記錄位置（未指定餐廳）';
+        }
     }
+    
+    manualLocationInput.classList.add('hidden');
+    
+    // 清除之前的選擇
+    const selectedItems = document.querySelectorAll('#restaurantList li.selected');
+    selectedItems.forEach(item => {
+        item.classList.remove('selected');
+    });
 }
 
 // 設置評分
@@ -336,75 +337,78 @@ function setRating(rating) {
     });
 }
 
-// 切換語音輸入
+// 切換錄音功能
 function toggleVoiceInput() {
     if (!isRecording) {
-        startVoiceRecording();
+        startAudioRecording();
     } else {
-        stopVoiceRecording();
+        stopAudioRecording();
     }
 }
 
-// 開始語音錄製
-function startVoiceRecording() {
-    if (!window.SpeechRecognition && !window.webkitSpeechRecognition) {
-        alert('您的瀏覽器不支持語音識別功能');
+// 開始錄音
+function startAudioRecording() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert('您的瀏覽器不支持錄音功能');
         return;
     }
     
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
-    
-    recognition.lang = 'zh-TW';
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    
-    recognition.onstart = () => {
-        isRecording = true;
-        voiceStatus.textContent = '正在聆聽...';
-        voiceInputBtn.style.backgroundColor = '#f44336';
-    };
-    
-    recognition.onresult = (event) => {
-        let interimTranscript = '';
-        let finalTranscript = '';
-        
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-            const transcript = event.results[i][0].transcript;
-            if (event.results[i].isFinal) {
-                finalTranscript += transcript;
-            } else {
-                interimTranscript += transcript;
-            }
-        }
-        
-        if (finalTranscript) {
-            notesText.value += finalTranscript + ' ';
-            currentRecord.notes = notesText.value;
-        }
-    };
-    
-    recognition.onerror = (event) => {
-        console.error('語音識別錯誤:', event.error);
-        stopVoiceRecording();
-    };
-    
-    recognition.onend = () => {
-        stopVoiceRecording();
-    };
-    
-    recognition.start();
-    mediaRecorder = recognition;
+    navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(stream => {
+            audioChunks = [];
+            mediaRecorder = new MediaRecorder(stream);
+            
+            mediaRecorder.addEventListener('dataavailable', event => {
+                audioChunks.push(event.data);
+            });
+            
+            mediaRecorder.addEventListener('stop', () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                const audioUrl = URL.createObjectURL(audioBlob);
+                
+                // 保存錄音到當前記錄
+                currentRecord.audioNote = audioUrl;
+                
+                // 顯示錄音播放器
+                const audioPlayer = document.createElement('audio');
+                audioPlayer.src = audioUrl;
+                audioPlayer.controls = true;
+                audioPlayer.style.width = '100%';
+                audioPlayer.style.marginTop = '10px';
+                
+                // 清除之前的播放器
+                const oldPlayer = document.querySelector('.audio-player');
+                if (oldPlayer) {
+                    oldPlayer.remove();
+                }
+                
+                // 添加新播放器
+                audioPlayer.classList.add('audio-player');
+                voiceStatus.parentNode.appendChild(audioPlayer);
+                
+                // 釋放媒體流
+                stream.getTracks().forEach(track => track.stop());
+            });
+            
+            mediaRecorder.start();
+            isRecording = true;
+            voiceStatus.textContent = '正在錄音...';
+            voiceInputBtn.style.backgroundColor = '#f44336';
+        })
+        .catch(error => {
+            console.error('無法訪問麥克風:', error);
+            alert('無法訪問麥克風，請確保您已授予麥克風權限。');
+        });
 }
 
-// 停止語音錄製
-function stopVoiceRecording() {
-    if (mediaRecorder) {
+// 停止錄音
+function stopAudioRecording() {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
         mediaRecorder.stop();
     }
     
     isRecording = false;
-    voiceStatus.textContent = '點擊麥克風開始語音輸入';
+    voiceStatus.textContent = '點擊麥克風開始錄音';
     voiceInputBtn.style.backgroundColor = '';
 }
 
@@ -482,11 +486,6 @@ function saveRecord() {
         return;
     }
     
-    if (!currentRecord.restaurant) {
-        alert('請選擇或輸入餐廳名稱');
-        return;
-    }
-    
     if (currentRecord.rating === 0) {
         alert('請為這道菜評分');
         return;
@@ -497,8 +496,17 @@ function saveRecord() {
     currentRecord.price = price.value.trim();
     currentRecord.notes = notesText.value.trim();
     
-    // 添加到記錄列表
-    records.push(currentRecord);
+    if (isEditing) {
+        // 編輯模式：更新現有記錄
+        const index = records.findIndex(r => r.id === currentRecord.id);
+        if (index !== -1) {
+            records[index] = currentRecord;
+        }
+        isEditing = false;
+    } else {
+        // 新增模式：添加到記錄列表
+        records.push(currentRecord);
+    }
     
     // 保存到本地存儲
     saveRecords();
@@ -509,9 +517,9 @@ function saveRecord() {
     // 停止相機流
     stopCameraStream();
     
-    // 停止語音錄製
+    // 停止錄音
     if (isRecording) {
-        stopVoiceRecording();
+        stopAudioRecording();
     }
     
     // 返回主頁
@@ -520,7 +528,7 @@ function saveRecord() {
     homeScreen.classList.remove('hidden');
     
     // 顯示成功消息
-    alert('記錄已保存！');
+    alert(isEditing ? '記錄已更新！' : '記錄已保存！');
 }
 
 // 更新記錄列表
@@ -590,6 +598,79 @@ function generateStars(rating) {
     return starsHtml;
 }
 
+// 編輯記錄
+function editRecord(record) {
+    // 設置編輯模式
+    isEditing = true;
+    
+    // 將當前記錄設置為要編輯的記錄
+    currentRecord = JSON.parse(JSON.stringify(record)); // 深拷貝以避免直接修改原記錄
+    
+    // 填充表單
+    if (currentRecord.photo) {
+        capturedImage.src = currentRecord.photo;
+        capturedImage.classList.remove('hidden');
+        cameraPlaceholder.classList.add('hidden');
+        captureBtn.classList.add('hidden');
+        retakeBtn.classList.remove('hidden');
+    }
+    
+    // 顯示位置信息
+    if (currentRecord.location) {
+        locationStatus.innerHTML = `<strong>已獲取GPS位置</strong><br>緯度: ${currentRecord.location.latitude.toFixed(6)}<br>經度: ${currentRecord.location.longitude.toFixed(6)}`;
+        if (currentRecord.restaurant) {
+            locationStatus.innerHTML += `<br>餐廳: ${currentRecord.restaurant}`;
+        }
+    } else if (currentRecord.restaurant) {
+        locationStatus.textContent = `餐廳: ${currentRecord.restaurant}`;
+    }
+    
+    // 設置評分
+    setRating(currentRecord.rating);
+    
+    // 設置筆記
+    notesText.value = currentRecord.notes || '';
+    
+    // 設置標籤
+    const allTags = document.querySelectorAll('.tag');
+    allTags.forEach(tag => {
+        const tagName = tag.getAttribute('data-tag');
+        if (currentRecord.tags.includes(tagName)) {
+            tag.classList.add('selected');
+        } else {
+            tag.classList.remove('selected');
+        }
+    });
+    
+    // 設置選填項
+    dishName.value = currentRecord.dishName || '';
+    price.value = currentRecord.price || '';
+    
+    // 顯示錄音播放器（如果有）
+    if (currentRecord.audioNote) {
+        const audioPlayer = document.createElement('audio');
+        audioPlayer.src = currentRecord.audioNote;
+        audioPlayer.controls = true;
+        audioPlayer.style.width = '100%';
+        audioPlayer.style.marginTop = '10px';
+        
+        // 清除之前的播放器
+        const oldPlayer = document.querySelector('.audio-player');
+        if (oldPlayer) {
+            oldPlayer.remove();
+        }
+        
+        // 添加新播放器
+        audioPlayer.classList.add('audio-player');
+        voiceStatus.parentNode.appendChild(audioPlayer);
+    }
+    
+    // 切換到記錄頁面
+    homeScreen.classList.add('hidden');
+    detailScreen.classList.add('hidden');
+    recordScreen.classList.remove('hidden');
+}
+
 // 顯示記錄詳情
 function showRecordDetail(record) {
     // 切換到詳情頁面
@@ -611,6 +692,30 @@ function showRecordDetail(record) {
         tagsHtml = '<p>無標籤</p>';
     }
     
+    // 生成位置信息
+    let locationHtml = '';
+    if (record.location) {
+        locationHtml = `<p>GPS: ${record.location.latitude.toFixed(6)}, ${record.location.longitude.toFixed(6)}</p>`;
+        if (record.restaurant) {
+            locationHtml += `<p>餐廳: ${record.restaurant}</p>`;
+        }
+    } else if (record.restaurant) {
+        locationHtml = `<p>餐廳: ${record.restaurant}</p>`;
+    } else {
+        locationHtml = '<p>未記錄位置</p>';
+    }
+    
+    // 生成錄音播放器HTML
+    let audioHtml = '';
+    if (record.audioNote) {
+        audioHtml = `
+        <div class="detail-audio">
+            <h3><i class="fas fa-microphone"></i> 語音筆記</h3>
+            <audio src="${record.audioNote}" controls class="audio-player" style="width:100%"></audio>
+        </div>
+        `;
+    }
+    
     // 填充詳情內容
     detailScreen.innerHTML = `
         <div class="detail-header">
@@ -618,14 +723,17 @@ function showRecordDetail(record) {
                 <i class="fas fa-arrow-left"></i> 返回
             </button>
             <h2>${record.dishName || '美食紀錄'}</h2>
+            <button id="editRecordBtn" class="text-btn">
+                <i class="fas fa-edit"></i> 編輯
+            </button>
         </div>
         
         <img src="${record.photo}" alt="${record.dishName || '美食照片'}" class="detail-image">
         
         <div class="detail-info">
             <div class="detail-restaurant">
-                <h3><i class="fas fa-map-marker-alt"></i> 餐廳</h3>
-                <p>${record.restaurant}</p>
+                <h3><i class="fas fa-map-marker-alt"></i> 位置</h3>
+                ${locationHtml}
             </div>
             
             <div class="detail-rating">
@@ -644,6 +752,8 @@ function showRecordDetail(record) {
                 <p>${record.notes}</p>
             </div>
             ` : ''}
+            
+            ${audioHtml}
             
             <div class="detail-tags">
                 <h3><i class="fas fa-tags"></i> 標籤</h3>
@@ -664,6 +774,11 @@ function showRecordDetail(record) {
     document.getElementById('backToHomeBtn').addEventListener('click', () => {
         detailScreen.classList.add('hidden');
         homeScreen.classList.remove('hidden');
+    });
+    
+    // 編輯按鈕事件
+    document.getElementById('editRecordBtn').addEventListener('click', () => {
+        editRecord(record);
     });
 }
 
@@ -694,77 +809,4 @@ function loadRecords() {
     }
 }
 
-// 添加CSS樣式
-document.head.insertAdjacentHTML('beforeend', `
-<style>
-/* 記錄卡片樣式 */
-.record-card {
-    display: flex;
-    background-color: white;
-    border-radius: 10px;
-    overflow: hidden;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    cursor: pointer;
-    transition: transform 0.2s;
-}
-
-.record-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-}
-
-.record-image {
-    width: 120px;
-    height: 120px;
-    flex-shrink: 0;
-}
-
-.record-image img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.record-info {
-    padding: 1rem;
-    flex-grow: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-}
-
-.record-info h3 {
-    margin: 0 0 0.3rem 0;
-    font-size: 1.1rem;
-}
-
-.record-info p {
-    margin: 0 0 0.5rem 0;
-    color: #666;
-    font-size: 0.9rem;
-}
-
-.record-rating {
-    color: #ffc107;
-    margin-bottom: 0.5rem;
-}
-
-.record-date {
-    font-size: 0.8rem !important;
-    color: #999 !important;
-}
-
-/* 詳情頁面樣式 */
-.detail-header {
-    display: flex;
-    align-items: center;
-    margin-bottom: 1rem;
-}
-
-.detail-header h2 {
-    margin: 0 0 0 1rem;
-    flex-grow: 1;
-    font-size: 1.3rem;
-}
-</style>
-`);
+// CSS樣式已移至styles.css檔案中

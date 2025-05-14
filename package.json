@@ -1,0 +1,13 @@
+{
+  "name": "foodlog",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "http-server -c-1 -o index.html"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
