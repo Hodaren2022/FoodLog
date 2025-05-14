@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FoodLog - 美食品嚐紀錄</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <header>
+            <h1>FoodLog</h1>
+            <p>輕鬆記錄美食體驗</p>
+        </header>
+
+        <main>
+            <div class="home-screen" id="homeScreen">
+                <button id="newRecordBtn" class="primary-btn">
+                    <i class="fas fa-plus"></i> 新增紀錄
+                </button>
+                <div class="records-list" id="recordsList">
+                    <!-- 紀錄將在這裡動態生成 -->
+                    <div class="empty-state">
+                        <i class="fas fa-utensils"></i>
+                        <p>尚無美食紀錄</p>
+                        <p>點擊上方按鈕開始記錄您的美食體驗</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="record-screen hidden" id="recordScreen">
+                <div class="photo-section">
+                    <div class="camera-container" id="cameraContainer">
+                        <video id="cameraPreview" autoplay playsinline></video>
+                        <canvas id="photoCanvas" class="hidden"></canvas>
+                        <div class="camera-placeholder" id="cameraPlaceholder">
+                            <i class="fas fa-camera"></i>
+                            <p>點擊啟用相機</p>
+                        </div>
+                        <img id="capturedImage" class="hidden">
+                    </div>
+                    <div class="camera-controls">
+                        <button id="captureBtn" class="circle-btn">
+                            <i class="fas fa-camera"></i>
+                        </button>
+                        <button id="retakeBtn" class="circle-btn hidden">
+                            <i class="fas fa-redo"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="location-section">
+                    <h3><i class="fas fa-map-marker-alt"></i> 位置</h3>
+                    <div class="location-container">
+                        <div id="locationStatus">正在獲取位置...</div>
+                        <div id="restaurantSuggestions" class="restaurant-suggestions hidden">
+                            <h4>附近餐廳</h4>
+                            <ul id="restaurantList"></ul>
+                        </div>
+                        <div class="manual-input hidden" id="manualLocationInput">
+                            <input type="text" id="customRestaurantName" placeholder="輸入餐廳名稱">
+                            <button id="confirmCustomRestaurant">確認</button>
+                        </div>
+                        <button id="manualLocationBtn" class="text-btn">手動輸入</button>
+                    </div>
+                </div>
+
+                <div class="rating-section">
+                    <h3><i class="fas fa-star"></i> 評分</h3>
+                    <div class="rating-container" id="ratingContainer">
+                        <div class="stars">
+                            <i class="far fa-star" data-rating="1"></i>
+                            <i class="far fa-star" data-rating="2"></i>
+                            <i class="far fa-star" data-rating="3"></i>
+                            <i class="far fa-star" data-rating="4"></i>
+                            <i class="far fa-star" data-rating="5"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="notes-section">
+                    <h3><i class="fas fa-comment"></i> 筆記</h3>
+                    <div class="voice-input">
+                        <button id="voiceInputBtn" class="circle-btn">
+                            <i class="fas fa-microphone"></i>
+                        </button>
+                        <div id="voiceStatus">點擊麥克風開始語音輸入</div>
+                    </div>
+                    <textarea id="notesText" placeholder="在此輸入筆記或使用語音輸入..."></textarea>
+                </div>
+
+                <div class="tags-section">
+                    <h3><i class="fas fa-tags"></i> 標籤</h3>
+                    <div class="tags-container" id="tagsContainer">
+                        <div class="predefined-tags">
+                            <span class="tag" data-tag="甜">甜</span>
+                            <span class="tag" data-tag="鹹">鹹</span>
+                            <span class="tag" data-tag="辣">辣</span>
+                            <span class="tag" data-tag="酸">酸</span>
+                            <span class="tag" data-tag="苦">苦</span>
+                            <span class="tag" data-tag="鮮">鮮</span>
+                            <span class="tag" data-tag="酥脆">酥脆</span>
+                            <span class="tag" data-tag="軟嫩">軟嫩</span>
+                            <span class="tag" data-tag="多汁">多汁</span>
+                            <span class="tag" data-tag="香氣濃郁">香氣濃郁</span>
+                            <span class="tag" data-tag="擺盤精緻">擺盤精緻</span>
+                            <span class="tag" data-tag="服務好">服務好</span>
+                            <span class="tag" data-tag="性價比高">性價比高</span>
+                        </div>
+                        <div class="custom-tag-input">
+                            <input type="text" id="customTagInput" placeholder="新增自定義標籤">
+                            <button id="addCustomTagBtn">新增</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="optional-section">
+                    <h3><i class="fas fa-info-circle"></i> 選填資訊</h3>
+                    <div class="optional-fields">
+                        <div class="input-group">
+                            <label for="dishName">菜名</label>
+                            <input type="text" id="dishName" placeholder="輸入菜名（選填）">
+                        </div>
+                        <div class="input-group">
+                            <label for="price">價格</label>
+                            <input type="number" id="price" placeholder="輸入價格（選填）">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button id="cancelRecordBtn" class="secondary-btn">取消</button>
+                    <button id="saveRecordBtn" class="primary-btn">儲存</button>
+                </div>
+            </div>
+
+            <div class="detail-screen hidden" id="detailScreen">
+                <!-- 紀錄詳情將在這裡動態生成 -->
+            </div>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
